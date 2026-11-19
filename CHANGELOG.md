@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 (2026-11-19)
 
 - Fixed menu bar movement when CPU or memory readings gain a digit. Download and upload readings now have separate fixed-width columns so a change in one direction keeps the other arrow in place.
 

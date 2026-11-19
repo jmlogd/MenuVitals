@@ -136,7 +136,7 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let rate = "↓ \(download)  ↑ \(upload)"
         rows[4].title = "\(current?.name ?? "No active link")   \(rate)"
         rows[5].title = "Session   ↓ \(traffic(received))   ↑ \(traffic(sent))"
-        let values = [cpu, memory, rate]
+        let values = [cpu, memory, "Download \(download), upload \(upload)"]
         let selected = names.indices.filter { enabled[$0] }
         guard let button = item.button else { return }
         if selected.isEmpty {
@@ -152,7 +152,7 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
-    // Each icon and each direction arrow has a stable origin between samples.
+    // Reserve each field so the icons and network separator stay in place.
     func statusImage(cpu: String, memory: String, download: String, upload: String) -> NSImage {
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
@@ -161,11 +161,15 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
         var glyphs: [(image: NSImage, frame: NSRect)] = []
         var labels: [(text: NSAttributedString, origin: NSPoint)] = []
         var x: CGFloat = 0
-        func appendLabel(_ value: String, reserving sample: String) {
-            let text = NSAttributedString(string: value, attributes: attributes)
-            let width = ceil((sample as NSString).size(withAttributes: attributes).width)
+        func appendLabel(_ value: String, reserving sample: String,
+                         font: NSFont? = nil, alignRight: Bool = false) {
+            var style = attributes
+            if let font { style[.font] = font }
+            let text = NSAttributedString(string: value, attributes: style)
+            let width = ceil((sample as NSString).size(withAttributes: style).width)
             let size = text.size()
-            labels.append((text, NSPoint(x: x, y: floor((18 - size.height) / 2))))
+            let originX = alignRight ? x + width - ceil(size.width) : x
+            labels.append((text, NSPoint(x: originX, y: floor((18 - size.height) / 2))))
             x += width
         }
         for index in names.indices where enabled[index] {
@@ -178,15 +182,13 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
             case 0: appendLabel(cpu, reserving: "100%")
             case 1: appendLabel(memory, reserving: gb(ProcessInfo.processInfo.physicalMemory))
             default:
-                for (arrow, value) in [("↓", download), ("↑", upload)] {
-                    if arrow == "↑" { x += 3 }
-                    appendLabel(arrow, reserving: arrow)
-                    x += 1
-                    // The summary and accessibility label retain the full units.
-                    let parts = value.split(separator: " ")
-                    let compact = parts.count == 2 ? String(parts[0]) + parts[1].prefix(1) : value
-                    appendLabel(compact, reserving: "999M")
+                let font = NSFont.monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+                func compact(_ rate: String) -> String {
+                    rate.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "/s", with: "")
                 }
+                appendLabel(compact(download), reserving: "999MB", font: font, alignRight: true)
+                appendLabel("/", reserving: "/", font: font)
+                appendLabel(compact(upload), reserving: "999MB", font: font)
             }
         }
         let result = NSImage(size: NSSize(width: x, height: 18), flipped: false) { _ in

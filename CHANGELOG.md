@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Network speeds appear in smaller type as a download/upload pair, such as `39KB/29KB`. Click the readings for full rates per second.
+
 ## 1.0.1 (2026-11-19)
 
 - Fixed menu bar movement when CPU or memory readings gain a digit. Download and upload readings now have separate fixed-width columns so a change in one direction keeps the other arrow in place.

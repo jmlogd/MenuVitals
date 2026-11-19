@@ -123,15 +123,17 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         let now = ProcessInfo.processInfo.systemUptime
         let current = enabled[2] ? physicalLink() : nil
-        var rate = "↓ —  ↑ —"
+        var download = "—", upload = "—"
         if let current, let old = link, old.name == current.name, now > timestamp, now - timestamp < 10 {
             let down = Double(current.input &- old.input), up = Double(current.output &- old.output)
             received += down
             sent += up
-            rate = "↓ \(traffic(down/(now-timestamp)))/s  ↑ \(traffic(up/(now-timestamp)))/s"
+            download = rateLabel(down / (now - timestamp))
+            upload = rateLabel(up / (now - timestamp))
         }
         timestamp = now
         link = current
+        let rate = "↓ \(download)  ↑ \(upload)"
         rows[4].title = "\(current?.name ?? "No active link")   \(rate)"
         rows[5].title = "Session   ↓ \(traffic(received))   ↑ \(traffic(sent))"
         let values = [cpu, memory, rate]
@@ -145,34 +147,48 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
         } else {
             button.title = ""
             button.imagePosition = .imageOnly
-            button.image = statusImage(for: selected.map { values[$0] }, icons: selected.map { images[$0] })
+            button.image = statusImage(cpu: cpu, memory: memory, download: download, upload: upload)
             button.setAccessibilityLabel(selected.map { names[$0] + " " + values[$0] }.joined(separator: ", "))
         }
     }
 
-    // AppKit applies menu-bar contrast to the button image as a whole.
-    func statusImage(for readings: [String], icons: [NSImage?]) -> NSImage {
+    // Each icon and each direction arrow has a stable origin between samples.
+    func statusImage(cpu: String, memory: String, download: String, upload: String) -> NSImage {
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .regular),
             .foregroundColor: NSColor.black
         ]
-        let labels = readings.map { NSAttributedString(string: $0, attributes: attributes) }
-        let iconSide: CGFloat = 15
-        let gap: CGFloat = 7
-        let width = zip(icons, labels).reduce(CGFloat.zero) { total, pair in
-            total + (pair.0 == nil ? 0 : iconSide + 3) + ceil(pair.1.size().width)
-        } + gap * CGFloat(labels.count - 1)
-        let result = NSImage(size: NSSize(width: width, height: 18), flipped: false) { bounds in
-            var x: CGFloat = 0
-            for (icon, label) in zip(icons, labels) {
-                if let icon {
-                    icon.draw(in: NSRect(x: x, y: (bounds.height - iconSide) / 2,
-                                         width: iconSide, height: iconSide))
-                    x += iconSide + 3
-                }
-                label.draw(at: NSPoint(x: x, y: floor((bounds.height - label.size().height) / 2)))
-                x += ceil(label.size().width) + gap
+        var glyphs: [(image: NSImage, frame: NSRect)] = []
+        var labels: [(text: NSAttributedString, origin: NSPoint)] = []
+        var x: CGFloat = 0
+        func appendLabel(_ value: String, reserving sample: String) {
+            let text = NSAttributedString(string: value, attributes: attributes)
+            let width = ceil((sample as NSString).size(withAttributes: attributes).width)
+            let size = text.size()
+            labels.append((text, NSPoint(x: x + width - ceil(size.width), y: floor((18 - size.height) / 2))))
+            x += width
+        }
+        for index in names.indices where enabled[index] {
+            if x > 0 { x += 7 }
+            if let icon = images[index] {
+                glyphs.append((icon, NSRect(x: x, y: 1.5, width: 15, height: 15)))
+                x += 18
             }
+            switch index {
+            case 0: appendLabel(cpu, reserving: "100%")
+            case 1: appendLabel(memory, reserving: gb(ProcessInfo.processInfo.physicalMemory))
+            default:
+                for (arrow, value) in [("↓", download), ("↑", upload)] {
+                    if arrow == "↑" { x += 4 }
+                    appendLabel(arrow, reserving: arrow)
+                    x += 2
+                    appendLabel(value, reserving: "999 MB/s")
+                }
+            }
+        }
+        let result = NSImage(size: NSSize(width: x, height: 18), flipped: false) { _ in
+            for glyph in glyphs { glyph.image.draw(in: glyph.frame) }
+            for label in labels { label.text.draw(at: label.origin) }
             return true
         }
         result.isTemplate = true

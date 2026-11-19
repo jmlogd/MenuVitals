@@ -68,3 +68,15 @@ func gb(_ bytes: UInt64) -> String { String(format: "%.1f GB", Double(bytes) / 1
 func traffic(_ bytes: Double) -> String {
     ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .decimal)
 }
+
+// Use at most three digits so speed changes always fit the menu bar column.
+func rateLabel(_ bytesPerSecond: Double) -> String {
+    var value = bytesPerSecond
+    for unit in ["B/s", "KB/s", "MB/s", "GB/s", "TB/s"] {
+        if value.rounded() < 1000 || unit == "TB/s" {
+            return String(format: value < 9.95 && unit != "B/s" ? "%.1f %@" : "%.0f %@", value, unit)
+        }
+        value /= 1000
+    }
+    return "—"
+}

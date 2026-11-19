@@ -165,24 +165,27 @@ final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
             let text = NSAttributedString(string: value, attributes: attributes)
             let width = ceil((sample as NSString).size(withAttributes: attributes).width)
             let size = text.size()
-            labels.append((text, NSPoint(x: x + width - ceil(size.width), y: floor((18 - size.height) / 2))))
+            labels.append((text, NSPoint(x: x, y: floor((18 - size.height) / 2))))
             x += width
         }
         for index in names.indices where enabled[index] {
-            if x > 0 { x += 7 }
+            if x > 0 { x += 4 }
             if let icon = images[index] {
                 glyphs.append((icon, NSRect(x: x, y: 1.5, width: 15, height: 15)))
-                x += 18
+                x += 17
             }
             switch index {
             case 0: appendLabel(cpu, reserving: "100%")
             case 1: appendLabel(memory, reserving: gb(ProcessInfo.processInfo.physicalMemory))
             default:
                 for (arrow, value) in [("↓", download), ("↑", upload)] {
-                    if arrow == "↑" { x += 4 }
+                    if arrow == "↑" { x += 3 }
                     appendLabel(arrow, reserving: arrow)
-                    x += 2
-                    appendLabel(value, reserving: "999 MB/s")
+                    x += 1
+                    // The summary and accessibility label retain the full units.
+                    let parts = value.split(separator: " ")
+                    let compact = parts.count == 2 ? String(parts[0]) + parts[1].prefix(1) : value
+                    appendLabel(compact, reserving: "999M")
                 }
             }
         }

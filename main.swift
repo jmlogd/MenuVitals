@@ -1,6 +1,8 @@
 import AppKit
+import ServiceManagement
 
-final class Monitor: NSObject, NSApplicationDelegate {
+final class Monitor: NSObject, NSApplicationDelegate, NSMenuDelegate {
+    let loginItem = NSMenuItem(title: "Launch at Login", action: #selector(toggleLogin), keyEquivalent: "")
     let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let menu = NSMenu()
     let names = ["CPU", "Memory", "Network"]
@@ -44,6 +46,10 @@ final class Monitor: NSObject, NSApplicationDelegate {
             toggle.tag = index
             toggle.state = visible ? .on : .off
         }
+        settings.addItem(.separator())
+        loginItem.target = self
+        settings.addItem(loginItem)
+        settings.delegate = self
         menu.addItem(withTitle: "Settings", action: nil, keyEquivalent: "").submenu = settings
         menu.addItem(withTitle: "Quit MenuVitals", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         item.menu = menu
@@ -53,6 +59,33 @@ final class Monitor: NSObject, NSApplicationDelegate {
         RunLoop.main.add(clock, forMode: .common)
         timer = clock
     }
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        let status = SMAppService.mainApp.status
+        loginItem.state = status == .enabled ? .on : (status == .requiresApproval ? .mixed : .off)
+        loginItem.title = status == .requiresApproval ? "Launch at Login (Approval Required)…" : "Launch at Login"
+    }
+
+    @objc func toggleLogin() {
+        let service = SMAppService.mainApp
+        do {
+            switch service.status {
+            case .enabled:
+                try service.unregister()
+            case .requiresApproval:
+                SMAppService.openSystemSettingsLoginItems()
+            default:
+                try service.register()
+                if service.status == .requiresApproval {
+                    SMAppService.openSystemSettingsLoginItems()
+                }
+            }
+        } catch {
+            let alert = NSAlert(error: error)
+            alert.messageText = "Couldn’t change Launch at Login"
+            alert.runModal()
+        }
+    }
+
     @objc func toggleMetric(_ sender: NSMenuItem) {
         let index = sender.tag
         enabled[index].toggle()

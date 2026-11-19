@@ -1,6 +1,6 @@
 # MenuVitals
 
-MenuVitals displays CPU usage, memory use, and network throughput in the macOS menu bar. Click the readings to see a summary or choose which metrics to monitor under **Settings**. Preferences persist between launches.
+MenuVitals displays CPU usage, memory use, and network throughput in the macOS menu bar. Click the readings to see a summary or choose which metrics to monitor under **Settings**. Preferences persist between launches. Choose **Settings → Launch at Login** to start MenuVitals when you sign in to your Mac. The checkmark reflects the macOS login-item setting.
 
 ## Build and run
 

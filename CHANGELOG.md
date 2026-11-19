@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2 (2026-11-19)
 
 - Network speeds appear in smaller type as a download/upload pair, such as `39KB/29KB`. Click the readings for full rates per second.
 
